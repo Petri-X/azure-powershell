@@ -1,13 +1,26 @@
 param (
+    [Parameter(Mandatory=$true)]
     [string]$RepoRoot,
+
+    [Parameter(Mandatory=$true)]
     [string]$Configuration,
+
     [string]$TestsToRun,
-    [string]$PullRequestNumber,
+
+    [Parameter(Mandatory=$true, ParameterSetName='TargetModuleSet')]
     [string]$TargetModule,
+
+    [Parameter(Mandatory=$true, ParameterSetName='ModifiedModuleSet')]
     [string]$ModifiedModuleBuild,
+
     [string]$CoreTests,
+
     [string]$RepoArtifacts,
+
+    [Parameter(Mandatory=$true, ParameterSetName='PullRequestSet')]
     [string]$BuildCsprojList,
+
+    [Parameter(Mandatory=$true, ParameterSetName='PullRequestSet')]
     [string]$TestCsprojList
 
 )
@@ -29,7 +42,7 @@ function Include-CsprojFiles {
 
 $csprojFiles = @()
 
-if ($PullRequestNumber -eq 'null' -and $TargetModule -eq 'null' -and $ModifiedModuleBuild -eq 'false') {
+if ($PSCmdlet.ParameterSetName) {
     $csprojFiles += Include-CsprojFiles -Path "$RepoRoot/src/" -Exclude "*.Test.csproj;Authenticators.csproj" -Filter "*.csproj"
     if ($Configuration -ne 'Release' -and $TestsToRun -eq 'All') {
         $csprojFiles += Include-CsprojFiles -Path "$RepoRoot/src/" -Filter "*.Test.csproj"
@@ -49,7 +62,7 @@ if ($PullRequestNumber -eq 'null' -and $TargetModule -eq 'null' -and $ModifiedMo
 
 }
 
-if ($ModifiedModuleBuild -eq "true" -or $TargetModule -ne 'null') {
+if ($ModifiedModuleBuild -eq "true" -or $TargetModule -ne '') {
     .$RepoRoot\tools\BuildScripts\CheckChangeLogs.ps1 -outputFile $RepoArtifacts/ModifiedModule.txt -rootPath $RepoRoot -TargetModuleList $TargetModule
     $ModuleList = Get-Content $RepoArtifacts/ModifiedModule.txt
     foreach ($module in $ModuleList) {
@@ -71,7 +84,7 @@ if ($ModifiedModuleBuild -eq "true" -or $TargetModule -ne 'null') {
     }
 }
 
-if ($PullRequestNumber -ne 'null'){
+if ($PullRequestNumber -ne ''){
     $csprojFiles += Include-CsprojFiles -Path "$RepoRoot/src/" -Include $BuildCsprojList
     $csprojFiles += Include-CsprojFiles -Path "$RepoRoot/src/" -Include $TestCsprojList
 }

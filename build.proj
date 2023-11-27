@@ -38,7 +38,7 @@
     <TestFramework Condition="'$(TestFramework)' == ''">netcoreapp2.2</TestFramework>
     <IsGenerateBased Condition="'$(IsGenerateBased)' != 'true'">false</IsGenerateBased>
     <IsSecurityCheck Condition="'$(IsSecurityCheck)' != 'true'">false</IsSecurityCheck>
-    <ModifiedModuleBuild Condition="'$(ModifiedModuleBuild)' != 'true'">false</ModifiedModuleBuild>
+    <ModifiedModuleBuild Condition="'$(ModifiedModuleBuild)' == ''">false</ModifiedModuleBuild>
 
     
     <!-- Flags -->
@@ -84,8 +84,6 @@
     <!-- Test coverage flag -->
     <TurnOnTestCoverage Condition="'$(TurnOnTestCoverage)' != 'true'">false</TurnOnTestCoverage>
     <!-- For Script -->
-    <PullRequestNumber Condition="'$(PullRequestNumber)' == ''">null</PullRequestNumber>
-    <TargetModule Condition="'$(TargetModule)' == ''">null</TargetModule>
     <CoreTests Condition="'$(CoreTests)' == ''">null</CoreTests>
   </PropertyGroup>
 
@@ -123,7 +121,7 @@
     <Exec Command="dotnet publish $(RepoTools)StaticAnalysis/StaticAnalysis.Netcore.csproj -c $(Configuration)" />
   </Target>
 
-  <Target Name="FilterBuild" Condition="$(PullRequestNumber) != 'null'" DependsOnTargets="BuildTools">
+  <Target Name="FilterBuild" Condition="$(PullRequestNumber) != ''" DependsOnTargets="BuildTools">
     <Message Importance="high" Text="Filtering projects and modules..." />
 
     <Message Text="$(IsGenerateBased)" />
@@ -139,7 +137,7 @@
     <Exec Command="$(PowerShellCoreCommandPrefix) &quot;$(RepoTools)/CreateFilterMappings.ps1&quot;" />
     <Exec Command="$(PowerShellCoreCommandPrefix) &quot;$(RepoTools)/PrepareForSecurityCheck.ps1&quot;" Condition="'$(IsSecurityCheck)' == 'true'"/>
 
-    <CIFilterTask FilesChanged="@(FilesChanged)" TargetModule="" Mode="$(Configuration)" CsprojMapFilePath="./CsprojMappings.json">
+    <CIFilterTask FilesChanged="@(FilesChanged)" Mode="$(Configuration)" CsprojMapFilePath="./CsprojMappings.json">
       <Output TaskParameter="BuildCsprojList" ItemName="BuildCsprojList" />
       <Output TaskParameter="TestCsprojList" ItemName="TestCsprojList" />
       <Output TaskParameter="SubTasks" PropertyName="SubTasks" />
@@ -165,14 +163,19 @@
 
   <Target Name="BuildNormalModules">
     <!-- https://github.com/dotnet/cli/issues/6295#issuecomment-346973582 -->
-    <Exec Command="$(PowerShellCoreCommandPrefix) &quot;.\tools\BuildScripts\BuildModules.ps1 -RepoRoot $(RepoRoot) -Configuration $(Configuration) -TestsToRun $(TestsToRun) -PullRequestNumber $(PullRequestNumber) -TargetModule $(TargetModule) -ModifiedModuleBuild $(ModifiedModuleBuild) -CoreTests $(CoreTests) -RepoArtifacts $(RepoArtifacts)&quot;"/>
+    <Exec Command="$(PowerShellCoreCommandPrefix) &quot;.\tools\BuildScripts\BuildModules.ps1 -RepoRoot $(RepoRoot) -Configuration $(Configuration) -TestsToRun $(TestsToRun) -CoreTests $(CoreTests) -RepoArtifacts $(RepoArtifacts) -BuildCsprojList $(BuildCsprojList) -TestCsprojList $(TestCsprojList) &quot; " Condition="$(PullRequestNumber) != ''" />
+    <Exec Command="$(PowerShellCoreCommandPrefix) &quot;.\tools\BuildScripts\BuildModules.ps1 -RepoRoot $(RepoRoot) -Configuration $(Configuration) -TestsToRun $(TestsToRun) -CoreTests $(CoreTests) -RepoArtifacts $(RepoArtifacts) -TargetModule $(TargetModule) &quot; " Condition="$(TargetModule) != ''" />
+    <Exec Command="$(PowerShellCoreCommandPrefix) &quot;.\tools\BuildScripts\BuildModules.ps1 -RepoRoot $(RepoRoot) -Configuration $(Configuration) -TestsToRun $(TestsToRun) -CoreTests $(CoreTests) -RepoArtifacts $(RepoArtifacts) -TargetModule $(TargetModule) &quot; " Condition="$(ModifiedModuleBuild) != 'false'" />
+    <Exec Command="$(PowerShellCoreCommandPrefix) &quot;.\tools\BuildScripts\BuildModules.ps1 -RepoRoot $(RepoRoot) -Configuration $(Configuration) -TestsToRun $(TestsToRun) -CoreTests $(CoreTests) -RepoArtifacts $(RepoArtifacts) &quot; " Condition="$(ModifiedModuleBuild) == 'false' and $(TargetModule) == '' and $(PullRequestNumber) == '' />
+
+    
     <PropertyGroup>
       <BuildAction Condition="'$(Configuration)' != 'Release'">build</BuildAction>
       <BuildAction Condition="'$(Configuration)' == 'Release'">publish</BuildAction>
     </PropertyGroup>
 
-    <Exec Command="$(PowerShellCoreCommandPrefix) &quot;.\tools\ExecuteCIStep.ps1 -Build -RepoArtifacts $(RepoArtifacts) -Configuration $(Configuration) -GenerateDocumentationFile $(GenerateDocumentationFile) -EnableTestCoverage $(TurnOnTestCoverage) -BuildAction $(BuildAction)&quot;" Condition="$(PullRequestNumber) == 'null'"/>
-    <Exec Command="$(PowerShellCoreCommandPrefix) &quot;.\tools\ExecuteCIStep.ps1 -Build -PullRequestNumber $(PullRequestNumber) -RepoArtifacts $(RepoArtifacts) -Configuration $(Configuration) -GenerateDocumentationFile $(GenerateDocumentationFile) -EnableTestCoverage $(TurnOnTestCoverage) -BuildAction $(BuildAction)&quot;" Condition="$(PullRequestNumber) != 'null'"/>
+    <Exec Command="$(PowerShellCoreCommandPrefix) &quot;.\tools\ExecuteCIStep.ps1 -Build -RepoArtifacts $(RepoArtifacts) -Configuration $(Configuration) -GenerateDocumentationFile $(GenerateDocumentationFile) -EnableTestCoverage $(TurnOnTestCoverage) -BuildAction $(BuildAction)&quot;" Condition="$(PullRequestNumber) == ''"/>
+    <Exec Command="$(PowerShellCoreCommandPrefix) &quot;.\tools\ExecuteCIStep.ps1 -Build -PullRequestNumber $(PullRequestNumber) -RepoArtifacts $(RepoArtifacts) -Configuration $(Configuration) -GenerateDocumentationFile $(GenerateDocumentationFile) -EnableTestCoverage $(TurnOnTestCoverage) -BuildAction $(BuildAction)&quot;" Condition="$(PullRequestNumber) != ''"/>
 
     <!-- Build version controller -->
     <Exec Command="dotnet build $(RepoTools)VersionController/VersionController.Netcore.csproj -c $(Configuration)" />

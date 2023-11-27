@@ -12,10 +12,10 @@
 # ----------------------------------------------------------------------------------
 
 param(
-    [Parameter(Mandatory=$false)]
-    [string] $rootPath = ".",
     [Parameter(Mandatory=$True)]
-    [string] $outputFile = "artifacts/ChangedModule.txt",
+    [string] $rootPath,
+    [Parameter(Mandatory=$false)]
+    [string] $outputFile = "artifacts/ModifiedModule.txt",
     [Parameter(Mandatory=$false)]
     [string] $TargetModuleList = ""
 )
